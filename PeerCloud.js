@@ -1,34 +1,22 @@
 class PeerCloud {
-    constructor(base) {
-
-        // Save base URL if provided
-        if (base != undefined) {
-            this.base = base;
-        } else {
-            this.base = "localhost";
-        }
-
+    constructor() {
         // Create Peer
         this.peer = new Peer();
 
         // PeerID assigned when requested
         this.peerId = undefined;
 
-        // Map peer to connection
+        // Get base URL
+        this.baseURL = window.location.origin + window.location.pathname;
+
+        // Map peerId to connection
         this.conn = {};
 
+        // Message types
         this.MSG = {
-            "CONNECT": "CONNECT",
-            "MESSAGE": "MESSAGE"
-        };
-    }
-    setBaseURL(base) {
-        // Set the base URL used for invite URLs
-        this.base = base;
-    }
-    getBaseURL() {
-        // Get the base URL used for invite URLs
-        return this.base;
+            "CONNECT": "Connect",
+            "MESSAGE": "Message"
+        }
     }
     getPeerId() {
         // Return PeerID as Promise
@@ -47,68 +35,46 @@ class PeerCloud {
         // Return InviteURL as Promise
         return new Promise( (resolve, reject) => {
             this.getPeerId().then(peerId => {
-                resolve(this.base + "#" + peerId);
+                resolve(this.baseURL + "#" + peerId);
             });
         });
     }
-    join(peerId) {
+    join(_other_peerId) {
+        let other_peerId = _other_peerId;
+
+        if (other_peerId == undefined) {
+            if (!this._checkURL()) return false;
+
+            // URL is invite link
+            let hash = window.location.hash;
+            other_peerId = hash.substr(1, hash.length);
+        }
+
         // Join peer cloud
-        // Returns connection obj in Promise
+        // Returns Promise
         return new Promise( (resolve, reject) => {
-            if (peerId in this.conn) {
-                resolve[this.conn[peerId]];
+            if (other_peerId in this.conn) {
+                resolve(true);
             } else {
-                let connect = this.peer.connect(peerId);
+                let connect = this.peer.connect(other_peerId);
                 connect.on('open', () => {
-                    console.log("CONNECTION Established with " + peerId);
+                    console.log("CONNECTION Established with " + other_peerId);
                     let msg = {
                         "type": this.MSG.CONNECT,
                         "peer_id": this.peerId,
                         "known_peers": Object.keys(this.conn)
                     };
                     connect.send(JSON.stringify(msg));
-                    this.conn[peerId] = connect;
-                    resolve(connect);
+                    this.conn[other_peerId] = connect;
+                    resolve(true);
                 });
             }
         });
     }
-    joinURL(url) {
-        if (url == undefined) {
-            url = window.location.href;
-        }
-        // Join with invite URL
-        // Returns connection in Promise
-        let peerId = this._peerIdFromInviteURL(url);
-        window.location.hash = "#";
-        if (peerId != false) {
-            return this.join(peerId);
-        }
-    }
-    listPeers() {
-        // Returns list of peers
-        return Object.keys(this.conn);
-    }
-    send(peerId, msg) {
-        // Send message to peer
-        // msg is json object
-        let _msg = {
-            type: this.MSG.MESSAGE,
-            peer_id: this.peerId,
-            msg: msg
-        };
-        if (peerId in this.conn) {
-            this.conn[peerId].send(JSON.stringify(_msg));
-        } else {
-            join(peerId).then( conn => {
-                conn.send(JSON.stringify(_msg));
-            });
-        }
-    }
     broadcast(msg) {
         // Send to all peers
-        for (let peerId in this.conn) {
-            let conn = this.conn[peerId];
+        for (let other_peerId in this.conn) {
+            let conn = this.conn[other_peerId];
             let _msg = {
                 type: this.MSG.MESSAGE,
                 peer_id: this.peerId,
@@ -136,8 +102,9 @@ class PeerCloud {
                             console.log("CONNECTING with known_peers");
                             for (let peer_id of obj.known_peers) {
                                 console.log("known_peer:", peer_id);
-                                if (!(obj.peer_id in this.conn) && obj.peer_id != this.peerId) {
-                                    this.join(obj.peer_id);
+                                if (!(peer_id in this.conn) && peer_id != this.peerId) {
+                                    console.log("connecting with known_peer:", peer_id);
+                                    this.join(peer_id);
                                 }
                             }
                         }
@@ -149,9 +116,8 @@ class PeerCloud {
             });
         });
     }
-    _peerIdFromInviteURL(url) {
-        if (url.indexOf("#") != -1) {
-            return url.substr(url.indexOf("#") + 1, url.length);
-        }
+    _checkURL() {
+        let url_hash = window.location.hash;
+        return url_hash != "";
     }
 }

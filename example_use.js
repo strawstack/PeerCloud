@@ -1,18 +1,25 @@
+let c = undefined;
 (async function main() {
 
     // Create new peer
     let c = new PeerCloud();
 
-    // If URL is an invite,
-    // automatically join cloud
-    // and clear URL
+    // Join cloud via this pages invite URL
     c.join();
 
-    // Obtain a join URL to send to others
+    // Print this peer's invite URL
     let url = await c.getInviteURL();
     console.log("Invite:", url);
 
-    // Send message to all peers
+    // Print incomming messages
+    c.listen( msg => {
+        console.log(msg);
+    });
+
+    // Send a message to all peers in cloud
     c.broadcast("message");
 
-})();
+    return c;
+})().then( peer => {
+    c = peer;
+});
