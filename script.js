@@ -1,16 +1,17 @@
-let base_url = window.location.origin + window.location.pathname;
-console.log("base_url:", base_url);
+// Create a peer
+let c = new PeerCloud();
 
-let c = new PeerCloud(base_url);
-c.getInviteURL().then( url => console.log("Invite:", url));
+// Join the peer cloud (if the page URL is an invite link)
+c.join();
 
-c.listen((msg) => {
+// Print an invite URL
+let url = await c.getInviteURL();
+console.log("Invite:", url);
+
+// Print all incomming messages
+c.listen( msg => {
     console.log(msg);
-})
-
-c.joinURL().then( conn => {
-    setTimeout(() => {
-        console.log("Broadcast Hello");
-        c.broadcast("Hello");
-    }, 2000);
 });
+
+// Send a message to all users in the peer cloud
+c.broadcast("Hello world!");
